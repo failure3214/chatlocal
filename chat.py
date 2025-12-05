@@ -3,12 +3,12 @@ from tkinter import ttk, messagebox
 import threading
 import socket
 
-def start_chat(username, user_id, server_ip):
+def start_chat(username, user_id):
     last_sender = None
 
     # сервер
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    client_socket.connect((server_ip, 5001))
+    client_socket.connect(("209.25.141.30", 25627))
     client_socket.send(f"{username}|{user_id}".encode())  
 
     root = tk.Tk()
@@ -72,11 +72,20 @@ def start_chat(username, user_id, server_ip):
     send_button.pack(side="right")
 
     # сообщения
-    def add_message(msg, sender="Other", name="friend"):
+    def add_message(msg, sender="Other", name="System"):
         nonlocal last_sender
         is_me = sender == "You"
-        bg_color = "#6a6a6a" if is_me else "#505050"
-
+        if sender == "System":
+            bg_color = "#3a7ff6"  # например, синий фон
+            fg_color = "white"
+            justify = "center"
+            anchor = "center"
+        else:
+            bg_color = "#6a6a6a" if is_me else "#505050"
+            fg_color = "white"
+            justify = "left"
+            anchor = "w"
+        
         canvas_width = canvas.winfo_width()  
         max_bubble_width = int(canvas_width * 0.7)  
         # как далеко сообщения от левой стороны
@@ -97,13 +106,13 @@ def start_chat(username, user_id, server_ip):
             bubble_frame,
             text=msg,
             bg=bg_color,
-            fg="white",
+            fg=fg_color,
             font=("Arial", 12),
             wraplength=max_bubble_width,
-            justify="left",
+            justify=justify,
             padx=10,
             pady=5
-        ).pack(side="right" if is_me else "left", padx=padx)
+        ).pack(side="right" if is_me else "left", padx=padx, anchor=anchor)
 
         last_sender = sender
         canvas.update_idletasks()
@@ -115,7 +124,7 @@ def start_chat(username, user_id, server_ip):
             add_message(msg, sender="You")  
             message_entry.delete(0, "end")
             try:
-                client_socket.send(msg.encode())  
+                client_socket.send((msg+"\n").encode())  
             except:
                 messagebox.showerror("Error", "connection lost.")
 
@@ -126,7 +135,13 @@ def start_chat(username, user_id, server_ip):
         msg = msg.strip()
         if not msg:
             return
-
+        if msg.startswith("NEWUSER|"):
+            new_user = msg.split("|")[1]
+            add_message(f"{new_user} подключился к чату", sender="System")
+            return
+        if msg.startswith("[LEFT]"):
+            add_message(msg[6:].strip(), sender="System")
+            return
         if ": " in msg:
             sender_name, message_text = msg.split(": ", 1)
             sender_name = sender_name.strip()
